@@ -3,15 +3,15 @@ int servoPin;
 void moveLeft()
 {
   changeMoveState(MOV_LEFT);
-  motorForward(MOTOR_LEFT,  0);
-  motorForward(MOTOR_RIGHT, moveSpeed);
+  motorForward(MOTOR_RIGHT,  moveSpeed);
+  motorReverse(MOTOR_LEFT, moveSpeed);
 }
 
 void moveRight()
 {
   changeMoveState(MOV_RIGHT);
-  motorForward(MOTOR_LEFT,  moveSpeed);
-  motorForward(MOTOR_RIGHT, 0);
+  motorReverse(MOTOR_RIGHT,  moveSpeed);
+  motorForward(MOTOR_LEFT, moveSpeed);
 }
 
 void moveForward()
@@ -76,7 +76,7 @@ int pingGetDistance(int pingPin)
 {
   // establish variables for duration of the ping,
   // and the distance result in inches and centimeters:
-  long duration, cm;
+  long duration, cm, inches;
 
   // The PING))) is triggered by a HIGH pulse of 2 or more microseconds.
   // Give a short LOW pulse beforehand to ensure a clean HIGH pulse:
@@ -84,21 +84,25 @@ int pingGetDistance(int pingPin)
   digitalWrite(pingPin, LOW);
   delayMicroseconds(2);
   digitalWrite(pingPin, HIGH);
-  delayMicroseconds(5);
+  delayMicroseconds(10);
   digitalWrite(pingPin, LOW);
 
   pinMode(pingPin, INPUT);
   duration = pulseIn(pingPin, HIGH, 20000); // if a pulse does not arrive in 20 ms then the ping sensor is not connected
   if(duration >=20000) {
     duration = 10000;
-    Serial.println("Time Out");
+    //Serial.println("Time Out");
   } else {
-    Serial.println("We got it");
+    //Serial.println("We got it");
   }
   // convert the time into a distance
   cm = microsecondsToCentimeters(duration);
-  Serial.println(cm);
-  return (cm * 10) / 25 ; // convert cm to inches
+  //Serial.print(cm);
+  //Serial.println(" cm");
+  inches = (cm * 10) / 25;
+  //Serial.print(inches);
+  //Serial.println(" inches");
+  return inches; // convert cm to inches
 }
 
 long microsecondsToCentimeters(long microseconds)

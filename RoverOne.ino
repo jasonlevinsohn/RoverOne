@@ -2,6 +2,10 @@
 // http://n0m1.com/2012/05/17/writing-your-own-arduino-libraries/
 
 
+//TODO:
+//Raise distance when checking left or right
+//Increase speed when turning
+
 #include <AFMotor.h>  // adafruit motor shield library (modified my mm)
 #include "RobotMotor.h"    // 2wd or 4wd motor library
 #include <RobotUtils.h> //J-Lev's Robot Functions
@@ -14,9 +18,16 @@ const int LED_PIN = 13;
 const int SERVO_PIN = 9;
 
 //Motor Defines
-int moveSpeed = 0;
+int moveSpeed = 40;
+int turnSpeed = 60;
+const int stopDistance = 10;
+const int dontTurn = 13;
+const int turnTime = 1300;
+
+
 int moveState = MOV_STOP;
-int distance;
+int distance = 0;
+
 boolean doOnce = true;
 boolean moving = true;
 boolean thresholdReached = false;
@@ -50,10 +61,11 @@ void setup() {
   moveStop();
   
   // Set Initial States
-  moveSetSpeed(MIN_SPEED);
+  moveSetSpeed(moveSpeed);
   //moveSetSpeed(MIN_SPEED + 10);
   softServoWrite(90, 1000);  //Centers the servo
-  Serial.println("Initiation Complete.");
+  Serial.print("Initiation Complete. Min Speed is: ");
+  Serial.println(moveSpeed);
   
   
   
@@ -65,25 +77,25 @@ void loop() {
   //TODO: Implement a run once algorithm so do...while(false); maybe?
   
   //Serial.println("Running Servo Test Program...");
-  Serial.println("Running Ping Test Program...");
-  delay(4000);
+  //Serial.println("Running Ping Test Program...");
+  //delay(3000);
   
   
  
   if(doOnce) {
      Serial.println("Looking Left...");
   softServoWrite(servoAngle[0], 700);
-  delay(1000);
+  delay(700);
   
   Serial.println("Looking Right...");
   softServoWrite(servoAngle[1], 700);
-  delay(1000);
+  delay(700);
   
   Serial.println("Looking Straight...");
   softServoWrite(servoAngle[2], 700);
 
   Serial.println("We are done here");
-  delay(2000);  
+  delay(700);  
   
   doOnce = false;
   
@@ -93,30 +105,26 @@ void loop() {
  
   // Here we have to stop the motors to get a distance
   // otherwise the ping will not be received.
-  if(moving) {
-    moveStop();
-  }
+  //if(moving) {
+   // moveStop();
+  //}
   //distance = pingGetDistance(PING_PIN);
   distance = checkCumDistance();
   
-  if(moving) {
-   moveForward(); 
-  }
+  //if(moving) {
+   //moveForward(); 
+  //}
   
   
+  
+  Serial.print("Distance: ");
   Serial.print(distance);
-  Serial.println(" cm");
-  Serial.println("");
-  Serial.println("");
-  Serial.println("");
-  Serial.println("Starting Main Test");
-  delay(2000);
-  
-  
-  if (distance < 24 || movingBackward == true) {
-    Serial.println("We are stopping");
-    Serial.println(distance);
-    Serial.println(movingBackward);
+  Serial.print(" Speed: ");
+  Serial.println(MIN_SPEED);
+  if (((distance < stopDistance) && (distance > 2)) || movingBackward == true) {
+    Serial.print("We are stopping");
+    Serial.print(distance);
+    Serial.println(" cm");
     moveStop(); 
     movingBackward = false;
     moving = false;  
@@ -125,16 +133,21 @@ void loop() {
     // Let's check to see if we can move left.
     leftCheckDistance = checkDistanceLeft(true);
     
-    if(leftCheckDistance > 24) {
+    if(leftCheckDistance > dontTurn) {
       // Turn left and move forward
+      moveSetSpeed(turnSpeed);
       turn45DegLeft();
+      moveSetSpeed(moveSpeed);
       moving = true;
       
     } else {
       rightCheckDistance = checkDistanceLeft(false);
-      if(rightCheckDistance > 24) {
-       // Turn right and move forward
+      if(rightCheckDistance > dontTurn) {
+       // Change speed for turning. 
+       // Turn right and move forward. 
+       moveSetSpeed(turnSpeed);
        turn45DegRight();
+       moveSetSpeed(moveSpeed);
        moving = true;
       } else {
        // Go back 10 feet and try again
@@ -142,7 +155,7 @@ void loop() {
        softServoWrite(servoAngle[2], 700);
        movingBackward = true;
        moveBackward();
-       delay(5000);
+       delay(3000);
        moveStop();
        moving = false;
       }
@@ -150,6 +163,7 @@ void loop() {
     
     
   } else {
+    Serial.println("Distance Checked: MOVING FORWARD");
     moveForward(); 
     moving = true;
     
@@ -162,10 +176,10 @@ int checkDistanceLeft(boolean dir) {
   
   if(dir) {
     Serial.println("Checking Distance Left");
-    delay(2000);
+    delay(1000);
   } else {
     Serial.println("Checking Distance Right");
-    delay(2000);
+    delay(1000);
   }
   
   delay(1000);
@@ -177,7 +191,13 @@ int checkDistanceLeft(boolean dir) {
     softServoWrite(servoAngle[1], 1000);  
   }
   
+  delay(500);
   cumDistance = checkCumDistance();
+  
+  Serial.print("Distance is: ");
+  Serial.print(cumDistance);
+  Serial.println(" inches");
+  delay(1000);
   return cumDistance;
     
 
@@ -185,21 +205,18 @@ int checkDistanceLeft(boolean dir) {
 
 int checkCumDistance() {
     int sumDistance = 0;
+    int cum = 0;
     for(int i = 0; i < 3; i++) {
      //We are testing here for error with motors and pings
-     delay(100);
+     delay(10);
      distance = pingGetDistance(PING_PIN); 
      sumDistance = sumDistance + distance;
-     delay(500);
-     Serial.print("Sum Distance is: ");
-     Serial.println(sumDistance);
-    }
-    int cum = sumDistance / 3;
+     delay(10);
     
-    Serial.print("Cum distance is ");
-    Serial.print(cum);
-    Serial.println(" cm");
-    return cum;
+    }
+    cum = sumDistance / 3;
+    
+        return cum;
 }
 
 void turn45DegLeft() {
@@ -207,10 +224,10 @@ void turn45DegLeft() {
       softServoWrite(servoAngle[2], 700);
       delay(1000);
       moveLeft();
-      delay(2000);
+      delay(turnTime);
       moveStop();
       Serial.println("LEFT turn complete");
-      delay(7000);
+      delay(3000);
 }
 
 void turn45DegRight() {
@@ -218,8 +235,8 @@ void turn45DegRight() {
   softServoWrite(servoAngle[2], 700);
   delay(1000);
   moveRight();
-  delay(2000);
+  delay(turnTime);
   moveStop();
   Serial.println("RIGHT turn complete");
-  delay(7000);
+  delay(3000);
 }
